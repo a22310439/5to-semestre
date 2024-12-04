@@ -1,10 +1,9 @@
-import java.net.MalformedURLException;
-import java.net.UnknownHostException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 
 public class MiClaseRemota extends UnicastRemoteObject implements
-MiInterfazRemota {
+    MiInterfazRemota {
 
     public MiClaseRemota() throws RemoteException {
         // Código del constructor
@@ -21,20 +20,24 @@ MiInterfazRemota {
         // Aquí ponemos el código que queramos
         return 5;
     }
-    
+
     @Override
     public String otroMetodo() {
-        return "Estoy en otroMetodo()";
+        return "a";
     }
-    
+
     public static void main(String[] args) {
         try {
-            MiInterfazRemota mir = new MiClaseRemota();
 
-            java.rmi.Naming.rebind("//" +
-            java.net.InetAddress.getLocalHost().getHostAddress() +
-            ":" + args[0] + "/PruebaRMI", mir);
-        } catch (MalformedURLException | UnknownHostException | RemoteException e) {
+            String ip = "192.168.1.85";
+            int port = 1234;
+
+            LocateRegistry.createRegistry(port);
+            
+            MiInterfazRemota mir = new MiClaseRemota();
+            
+            java.rmi.Naming.rebind("//" + ip + ":" + port + "/PruebaRMI", mir);
+        } catch (Exception e) {
             System.out.println(e);
         }
     }
