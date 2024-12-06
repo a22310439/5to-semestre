@@ -4,9 +4,8 @@ import Servidor.ServidorChatInterface;
 import java.awt.*;
 import java.awt.event.*;
 import java.net.MalformedURLException;
-import java.rmi.Naming;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
+import java.rmi.*;
+import java.rmi.registry.LocateRegistry;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.*;
@@ -18,59 +17,51 @@ public class ClienteChatGUI extends JFrame {
     private JButton botonEnviar;
 
     private ClienteChatInterface cliente;
-    private ServidorChatInterface servidor;
+    private ServidorChatInterface servidor; // opcional si se usa el servidor
 
     private ScheduledExecutorService scheduler;
 
     private JTabbedPane tabbedPane;
     private Map<String, JTextArea> chats;
+    private Map<String, String> ipPorUsuario; // Mapa para almacenar IPs por nombre de usuario
 
-    private java.util.List<String> usuariosConectados;
+    private java.util.List<String> usuariosConectados; // Solo se usa si hay servidor
+    private boolean usarServidor;
 
-    public ClienteChatGUI(String nombreCliente, String serverIP) {
+    public ClienteChatGUI(String nombreCliente, String ipLocal, boolean usarServidor, String serverIP) {
         super("Chat - " + nombreCliente);
+        this.usarServidor = usarServidor;
 
         try {
-            // Configurar el cliente y el servidor
+            System.setProperty("java.rmi.server.hostname", ipLocal);
+
+            // Levantar RMI Registry local
+            try {
+                LocateRegistry.createRegistry(1099);
+            } catch (RemoteException ex) {
+                // Ya está levantado
+            }
+
             cliente = new ClienteChat(nombreCliente);
+            String clienteURL = "rmi://" + ipLocal + ":1099/ClienteChat_" + nombreCliente;
+            Naming.rebind(clienteURL, cliente);
+            cliente.setGUI(this);
 
-            // Conectar al servidor utilizando la IP proporcionada
-            String serverURL = "rmi://" + serverIP + ":1099/ServidorChat";
-            servidor = (ServidorChatInterface) Naming.lookup(serverURL);
-            servidor.registrarCliente(cliente);
-
-            // Inicializar el mapa de chats
             chats = new HashMap<>();
+            ipPorUsuario = new HashMap<>();
 
-            // Crear el JTabbedPane
-            tabbedPane = new JTabbedPane();
-
-            // Agregar el chat grupal a las pestañas
-            JTextArea areaChatGrupal = new JTextArea();
-            areaChatGrupal.setEditable(false);
-            chats.put("Todos", areaChatGrupal);
-            tabbedPane.addTab("Todos", new JScrollPane(areaChatGrupal));
-
-            // Inicializar la lista de usuarios conectados
-            usuariosConectados = new ArrayList<>();
-            actualizarListaUsuarios();
-
-            // Configurar la interfaz gráfica
             campoMensaje = new JTextField();
             botonEnviar = new JButton("Enviar");
 
-            // Definir el ActionListener
             ActionListener enviarMensajeListener = (ActionEvent e) -> {
                 enviarMensaje();
             };
 
-            // Acción al pulsar el botón Enviar
             botonEnviar.addActionListener(enviarMensajeListener);
-
-            // Acción al presionar Enter en el campo de mensaje
             campoMensaje.addActionListener(enviarMensajeListener);
 
-            // Disposición de los componentes
+            tabbedPane = new JTabbedPane();
+
             JPanel panelInferior = new JPanel(new BorderLayout());
             panelInferior.add(campoMensaje, BorderLayout.CENTER);
             panelInferior.add(botonEnviar, BorderLayout.EAST);
@@ -78,21 +69,28 @@ public class ClienteChatGUI extends JFrame {
             getContentPane().add(tabbedPane, BorderLayout.CENTER);
             getContentPane().add(panelInferior, BorderLayout.SOUTH);
 
-            // Añadir la barra de menú
             JMenuBar menuBar = new JMenuBar();
             JMenu menuChat = new JMenu("Chat");
-            JMenuItem menuItemNuevoChat = new JMenuItem("Iniciar Chat Privado");
-
+            JMenuItem menuItemConexionDirecta = new JMenuItem("Conectar a otro Cliente");
+            menuChat.add(menuItemConexionDirecta);
+            JMenuItem menuItemNuevoChat = new JMenuItem("Iniciar Chat Privado (con servidor)");
             menuChat.add(menuItemNuevoChat);
+
             menuBar.add(menuChat);
             setJMenuBar(menuBar);
 
-            // Acción al seleccionar "Iniciar Chat Privado"
-            menuItemNuevoChat.addActionListener(e -> {
-                iniciarChatPrivado();
+            menuItemConexionDirecta.addActionListener(e -> {
+                conectarAClienteDirecto();
             });
 
-            // Manejar cierre de la ventana
+            menuItemNuevoChat.addActionListener(e -> {
+                if (usarServidor) {
+                    iniciarChatPrivado();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Esta opción requiere conexión al servidor.", "Información", JOptionPane.INFORMATION_MESSAGE);
+                }
+            });
+
             addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowClosing(WindowEvent e) {
@@ -104,20 +102,36 @@ public class ClienteChatGUI extends JFrame {
             setSize(600, 400);
             setVisible(true);
 
-            // Iniciar actualización periódica después de que el constructor haya terminado
+            if (usarServidor) {
+                conectarAlServidor(serverIP);
+            }
+
+        } catch (RemoteException | MalformedURLException e) {
+            System.out.println("Error al configurar el cliente: " + e.getMessage());
+            System.exit(1);
+        }
+    }
+
+    private void conectarAlServidor(String serverIP) {
+        try {
+            String serverURL = "rmi://" + serverIP + ":1099/ServidorChat";
+            servidor = (ServidorChatInterface) Naming.lookup(serverURL);
+            servidor.registrarCliente(cliente);
+
+            JTextArea areaChatGrupal = new JTextArea();
+            areaChatGrupal.setEditable(false);
+            chats.put("Todos", areaChatGrupal);
+            tabbedPane.addTab("Todos", new JScrollPane(areaChatGrupal));
+
+            usuariosConectados = new ArrayList<>();
+            actualizarListaUsuarios();
+
             SwingUtilities.invokeLater(() -> {
-                try {
-                    cliente.setGUI(this);
-                } catch (RemoteException e1) {
-                    System.out.println("Error: " + e1.getMessage());
-                }
                 iniciarActualizacionPeriodica();
             });
-
-        } catch (NotBoundException | MalformedURLException | RemoteException e) {
-            System.out.println("Error al conectar con el servidor: " + e.getMessage());
-            JOptionPane.showMessageDialog(this, "Error al conectar con el servidor: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            System.exit(1);
+        } catch (RemoteException | NotBoundException | MalformedURLException ex) {
+            System.out.println("Error al conectar con el servidor: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "Error al conectar con el servidor: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -133,6 +147,7 @@ public class ClienteChatGUI extends JFrame {
     }
 
     private void actualizarListaUsuarios() {
+        if (!usarServidor || servidor == null) return;
         try {
             List<ClienteChatInterface> clientes = servidor.obtenerClientesConectados();
             usuariosConectados = new ArrayList<>();
@@ -152,8 +167,8 @@ public class ClienteChatGUI extends JFrame {
     }
 
     private void iniciarChatPrivado() {
-        if (usuariosConectados.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "No hay usuarios conectados.", "Información", JOptionPane.INFORMATION_MESSAGE);
+        if (!usarServidor || usuariosConectados == null || usuariosConectados.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No hay usuarios conectados o no estás usando el servidor.", "Información", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
@@ -166,8 +181,7 @@ public class ClienteChatGUI extends JFrame {
                 try {
                     ClienteChatInterface clienteDestino = servidor.obtenerCliente(nombreUsuario);
                     if (clienteDestino != null) {
-                        // Crear la pestaña si no existe
-                        agregarTabChatPrivado(nombreUsuario);
+                        agregarTabChatPrivado(nombreUsuario, clienteDestino);
                     } else {
                         JOptionPane.showMessageDialog(this, "El usuario no está conectado.", "Usuario no encontrado", JOptionPane.ERROR_MESSAGE);
                     }
@@ -180,68 +194,52 @@ public class ClienteChatGUI extends JFrame {
 
     private void enviarMensaje() {
         try {
-            String mensaje = campoMensaje.getText();
+            String mensaje = campoMensaje.getText().trim();
             if (!mensaje.isEmpty()) {
-                if (mensaje.startsWith("/msj")) {
-                    // Procesar comando de mensaje privado
-                    procesarComandoMensajePrivado(mensaje);
+                String tabKey = tabbedPane.getTitleAt(tabbedPane.getSelectedIndex());
+                if (usarServidor && "Todos".equals(tabKey)) {
+                    // Enviar mensaje broadcast via servidor
+                    servidor.enviarMensajeBroadcast(mensaje, cliente.getNombre());
+                    agregarMensajeATab("Todos", "Yo: " + mensaje);
                 } else {
-                    // Enviar mensaje al chat activo
-                    String tabKey = tabbedPane.getTitleAt(tabbedPane.getSelectedIndex());
-                    if (tabKey.equals("Todos")) {
-                        // Enviar mensaje broadcast
-                        servidor.enviarMensajeBroadcast(mensaje, cliente.getNombre());
-                        // Mostrar el mensaje en el chat grupal
-                        agregarMensajeATab("Todos", "Yo: " + mensaje);
-                    } else {
-                        // Enviar mensaje directo al chat activo
-                        ClienteChatInterface clienteDestino = servidor.obtenerCliente(tabKey);
-                        if (clienteDestino != null) {
-                            clienteDestino.recibirMensaje(cliente.getNombre(), mensaje, true);
-                            // Mostrar el mensaje en la pestaña correspondiente
-                            agregarMensajeATab(tabKey, "Yo (privado): " + mensaje);
+                    JTextArea areaChat = chats.get(tabKey);
+                    ClienteChatInterface clienteDestino = (ClienteChatInterface) areaChat.getClientProperty("refRemota");
+
+                    if (clienteDestino == null) {
+                        // Si no hay servidor, intentamos resolver la referencia vía IP almacenada
+                        if (!usarServidor) {
+                            String ip = ipPorUsuario.get(tabKey);
+                            if (ip != null) {
+                                // Intentar lookup
+                                String url = "rmi://" + ip + ":1099/ClienteChat_" + tabKey;
+                                try {
+                                    clienteDestino = (ClienteChatInterface) Naming.lookup(url);
+                                    // Guardar la referencia para uso futuro
+                                    areaChat.putClientProperty("refRemota", clienteDestino);
+                                } catch (Exception ex) {
+                                    System.out.println("Error en lookup inverso: " + ex.getMessage());
+                                }
+                            }
                         } else {
-                            JOptionPane.showMessageDialog(this, "Usuario no encontrado.", "Error", JOptionPane.ERROR_MESSAGE);
+                            // Si se usa servidor, intentar obtener la referencia del servidor
+                            clienteDestino = servidor.obtenerCliente(tabKey);
+                            if (clienteDestino != null) {
+                                areaChat.putClientProperty("refRemota", clienteDestino);
+                            }
                         }
+                    }
+
+                    if (clienteDestino != null) {
+                        clienteDestino.recibirMensaje(cliente.getNombre(), mensaje, true);
+                        agregarMensajeATab(tabKey, "Yo (privado): " + mensaje);
+                    } else {
+                        JOptionPane.showMessageDialog(this, "No se encontró el cliente destino.", "Error", JOptionPane.ERROR_MESSAGE);
                     }
                 }
                 campoMensaje.setText("");
             }
         } catch (RemoteException e) {
-            System.out.println("Error: " + e.getMessage());
-        }
-    }
-
-    private void procesarComandoMensajePrivado(String comando) {
-        // Eliminar el prefijo "/msj" y cualquier espacio al inicio
-        String contenido = comando.substring(4).trim();
-        int primerEspacio = contenido.indexOf(' ');
-        if (primerEspacio == -1) {
-            JOptionPane.showMessageDialog(this, "Formato incorrecto. Uso: /msj usuario mensaje", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        String nombreUsuario = contenido.substring(0, primerEspacio).trim();
-        String mensaje = contenido.substring(primerEspacio).trim();
-        if (nombreUsuario.isEmpty() || mensaje.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Formato incorrecto. Uso: /msj usuario mensaje", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        try {
-            if (!nombreUsuario.equals(cliente.getNombre())) {
-                ClienteChatInterface clienteDestino = servidor.obtenerCliente(nombreUsuario);
-                if (clienteDestino != null) {
-                    // Enviar el mensaje privado
-                    clienteDestino.recibirMensaje(cliente.getNombre(), mensaje, true);
-                    // Mostrar el mensaje en la pestaña correspondiente
-                    agregarMensajeATab(nombreUsuario, "Yo (privado): " + mensaje);
-                } else {
-                    JOptionPane.showMessageDialog(this, "El usuario no está conectado.", "Usuario no encontrado", JOptionPane.ERROR_MESSAGE);
-                }
-            } else {
-                JOptionPane.showMessageDialog(this, "No puedes enviarte mensajes a ti mismo.", "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } catch (RemoteException e) {
-            System.out.println("Error: " + e.getMessage());
+            System.out.println("Error enviando mensaje: " + e.getMessage());
         }
     }
 
@@ -252,17 +250,25 @@ public class ClienteChatGUI extends JFrame {
         });
     }
 
-    private void agregarTabChatPrivado(String nombreUsuario) {
+    private void agregarTabChatPrivado(String nombreUsuario, ClienteChatInterface refRemota) {
         if (!chats.containsKey(nombreUsuario)) {
             JTextArea areaChat = new JTextArea();
             areaChat.setEditable(false);
             chats.put(nombreUsuario, areaChat);
-            tabbedPane.addTab(nombreUsuario, new JScrollPane(areaChat));
+            JScrollPane scrollPane = new JScrollPane(areaChat);
+            tabbedPane.addTab(nombreUsuario, scrollPane);
+
+            // Guardar la referencia remota si se proporciona
+            if (refRemota != null) {
+                areaChat.putClientProperty("refRemota", refRemota);
+            }
         }
     }
 
     private void agregarMensajeATab(String tabKey, String mensaje) {
-        agregarTabChatPrivado(tabKey);
+        if (!chats.containsKey(tabKey)) {
+            agregarTabChatPrivado(tabKey, null);
+        }
         JTextArea areaChat = chats.get(tabKey);
         areaChat.append(mensaje + "\n");
     }
@@ -271,29 +277,65 @@ public class ClienteChatGUI extends JFrame {
         if (scheduler != null && !scheduler.isShutdown()) {
             scheduler.shutdown();
         }
-        try {
-            servidor.desregistrarCliente(cliente);
-        } catch (RemoteException e) {
-            System.out.println("Error: " + e.getMessage());
+        if (usarServidor && servidor != null) {
+            try {
+                servidor.desregistrarCliente(cliente);
+            } catch (RemoteException e) {
+                System.out.println("Error: " + e.getMessage());
+            }
         }
         System.exit(0);
     }
-    
+
+    private void conectarAClienteDirecto() {
+        String ipOtroCliente = JOptionPane.showInputDialog(this, "Ingrese la IP del otro cliente:", "Conexión directa", JOptionPane.QUESTION_MESSAGE);
+        if (ipOtroCliente == null || ipOtroCliente.trim().isEmpty()) return;
+
+        String nombreOtroCliente = JOptionPane.showInputDialog(this, "Ingrese el nombre del otro cliente:", "Conexión directa", JOptionPane.QUESTION_MESSAGE);
+        if (nombreOtroCliente == null || nombreOtroCliente.trim().isEmpty()) return;
+
+        try {
+            String url = "rmi://" + ipOtroCliente + ":1099/ClienteChat_" + nombreOtroCliente;
+            ClienteChatInterface clienteDestino = (ClienteChatInterface) Naming.lookup(url);
+            if (clienteDestino != null) {
+                agregarTabChatPrivado(nombreOtroCliente, clienteDestino);
+                // Guardar la IP del otro cliente
+                ipPorUsuario.put(nombreOtroCliente, ipOtroCliente);
+                JOptionPane.showMessageDialog(this, "Conectado a " + nombreOtroCliente, "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, "No se pudo conectar con el cliente especificado.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error al conectar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     public static void main(String[] args) {
-        // Solicitar la dirección IP
-        String serverIP = JOptionPane.showInputDialog(null, "Ingrese la dirección IP del servidor:", "Conexión al Servidor", JOptionPane.QUESTION_MESSAGE);
-        if (serverIP == null || serverIP.trim().isEmpty()) {
-            System.out.println("La dirección IP no puede estar vacía.");
-            System.exit(0);
+        // Preguntar si se quiere usar servidor
+        int opcion = JOptionPane.showConfirmDialog(null, "¿Desea conectarse a un servidor?", "Modo de conexión", JOptionPane.YES_NO_OPTION);
+        boolean usarServidor = (opcion == JOptionPane.YES_OPTION);
+
+        String serverIP = null;
+        if (usarServidor) {
+            serverIP = JOptionPane.showInputDialog("Ingrese la IP del servidor:");
+            if (serverIP == null || serverIP.trim().isEmpty()) {
+                System.out.println("La IP del servidor no puede estar vacía.");
+                System.exit(0);
+            }
         }
 
-        // Solicitar el nombre del cliente
         String nombreCliente = JOptionPane.showInputDialog("Ingrese su nombre:");
-        if (nombreCliente != null && !nombreCliente.isEmpty()) {
-            new ClienteChatGUI(nombreCliente, serverIP);
-        } else {
+        if (nombreCliente == null || nombreCliente.trim().isEmpty()) {
             System.out.println("El nombre no puede estar vacío.");
             System.exit(0);
         }
+
+        String ipLocal = JOptionPane.showInputDialog("Ingrese la IP local de esta máquina:");
+        if (ipLocal == null || ipLocal.trim().isEmpty()) {
+            System.out.println("La IP local no puede estar vacía.");
+            System.exit(0);
+        }
+
+        new ClienteChatGUI(nombreCliente, ipLocal, usarServidor, serverIP);
     }
 }

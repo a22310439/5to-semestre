@@ -5,7 +5,7 @@ import java.rmi.RemoteException;
 public class MiClienteRMI {
     public static void main(String[] args) {
     try {
-        String ip = "192.168.1.85";
+        String ip = "192.168.1.75";
         String puerto = "1234";
         MiInterfazRemota mir =
         (MiInterfazRemota)Naming.lookup("//" + ip + ":" + puerto + "/PruebaRMI");
@@ -16,5 +16,6 @@ public class MiClienteRMI {
         } catch (MalformedURLException | NotBoundException | RemoteException e) {
             System.out.println("Error: " + e);
         }
+        System.out.println("Mensajes enviados");
     }
 }

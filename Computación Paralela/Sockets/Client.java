@@ -8,7 +8,7 @@ public class Client {
     protected DataOutputStream outputServer;
 
     public Client() throws IOException{
-        serverSocket = new Socket("192.168.1.85", 1234);
+        serverSocket = new Socket("192.168.1.75", 1234);
     }
     
     public void startClient() {
@@ -22,7 +22,7 @@ public class Client {
             outputServer.flush();
             serverSocket.close();
             
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.out.println(e.getMessage());
         }
     }
