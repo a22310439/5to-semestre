@@ -1,0 +1,99 @@
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/configuraciones_activity"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".ConfiguracionesActivity">
+
+    <!-- Título de Configuraciones -->
+    <TextView
+        android:id="@+id/tvConfiguraciones"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/configuraciones"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="24dp" />
+
+    <!-- ToggleButton para notificaciones -->
+    <TextView
+        android:id="@+id/tvNotificaciones"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/notificaciones"
+        app:layout_constraintTop_toBottomOf="@id/tvConfiguraciones"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="16dp" />
+
+    <ToggleButton
+        android:id="@+id/toggleNotificaciones"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textOn="@string/on"
+        android:textOff="@string/off"
+        app:layout_constraintTop_toBottomOf="@id/tvNotificaciones"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Menú emergente para idioma -->
+    <TextView
+        android:id="@+id/tvIdioma"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Seleccionar idioma"
+        app:layout_constraintTop_toBottomOf="@id/toggleNotificaciones"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="16dp" />
+
+    <Button
+        android:id="@+id/btnMenuIdioma"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Seleccionar"
+        app:layout_constraintTop_toBottomOf="@id/tvIdioma"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Opciones adicionales -->
+    <TextView
+        android:id="@+id/tvTema"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/cambiar_tema"
+        app:layout_constraintTop_toBottomOf="@id/btnMenuIdioma"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="16dp" />
+
+    <Switch
+        android:id="@+id/switchTema"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/modo_oscuro"
+        app:layout_constraintTop_toBottomOf="@id/tvTema"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+    <TextView
+        android:id="@+id/tvTamañoFuente"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/tama_o_de_fuente"
+        app:layout_constraintTop_toBottomOf="@id/switchTema"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginTop="16dp" />
+
+    <SeekBar
+        android:id="@+id/seekbarTamañoFuente"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="20"
+        app:layout_constraintTop_toBottomOf="@id/tvTamañoFuente"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

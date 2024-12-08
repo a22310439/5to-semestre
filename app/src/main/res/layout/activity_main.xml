@@ -1,0 +1,60 @@
+<GridLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/main"
+    android:columnCount="2"
+    android:rowCount="2"
+    android:padding="16dp"
+    android:background="@color/white">
+
+    <ImageButton
+        android:id="@+id/btnAddService"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_rowWeight="1"
+        android:layout_columnWeight="1"
+        android:layout_margin="10dp"
+        android:background="@drawable/button_background"
+        android:contentDescription="@string/add_service"
+        android:scaleType="centerInside"
+        android:src="@drawable/ic_add"
+        tools:ignore="ImageContrastCheck" />
+
+    <ImageButton
+        android:id="@+id/btnEditService"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_columnWeight="1"
+        android:layout_rowWeight="1"
+        android:background="@drawable/button_background"
+        android:src="@drawable/ic_edit"
+        android:scaleType="centerInside"
+        android:contentDescription="@string/edit_service"
+        android:layout_margin="10dp" />
+
+    <ImageButton
+        android:id="@+id/btnDeleteService"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_columnWeight="1"
+        android:layout_rowWeight="1"
+        android:background="@drawable/button_background"
+        android:src="@drawable/ic_delete"
+        android:scaleType="centerInside"
+        android:contentDescription="@string/delete_service"
+        android:layout_margin="10dp" />
+
+    <ImageButton
+        android:id="@+id/btnViewService"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_columnWeight="1"
+        android:layout_rowWeight="1"
+        android:background="@drawable/button_background"
+        android:src="@drawable/ic_view"
+        android:scaleType="centerInside"
+        android:contentDescription="@string/view_service"
+        android:layout_margin="10dp" />
+</GridLayout>

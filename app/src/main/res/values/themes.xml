@@ -1,0 +1,39 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Tema Principal -->
+    <style name="Base.Theme.ProyectoFinalMovilesI" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <!-- Color de fondo general -->
+        <item name="android:colorBackground">@color/white</item>
+
+        <!-- Colores de texto globales -->
+        <item name="android:textColorPrimary">@color/white</item>
+        <item name="android:textColorSecondary">@color/gray</item>
+
+        <!-- Colores primarios -->
+        <item name="colorPrimary">@color/primaryColor</item>
+        <item name="colorPrimaryVariant">@color/primaryDarkColor</item>
+        <item name="colorOnPrimary">@color/white</item>
+
+        <!-- Colores secundarios -->
+        <item name="colorSecondary">@color/accentColor</item>
+        <item name="colorOnSecondary">@color/white</item>
+
+        <!-- Configuración de la barra de estado -->
+        <item name="android:statusBarColor">@color/primaryDarkColor</item>
+        <item name="android:windowLightStatusBar">false</item> <!-- Cambia a true si quieres texto oscuro en la barra de estado -->
+
+        <!-- Estilo del ActionBar -->
+        <item name="actionBarStyle">@style/CustomActionBar</item>
+    </style>
+
+    <!-- Estilo personalizado para el ActionBar -->
+    <style name="CustomActionBar" parent="Widget.AppCompat.ActionBar.Solid">
+        <item name="android:background">@color/primaryDarkColor</item> <!-- Cambia este color al que desees -->
+        <item name="android:titleTextStyle">@style/CustomActionBarTitleText</item>
+    </style>
+
+    <!-- Estilo del texto del título en el ActionBar -->
+    <style name="CustomActionBarTitleText" parent="TextAppearance.AppCompat.Widget.ActionBar.Title">
+        <item name="android:textColor">@color/white</item> <!-- Color del texto del título -->
+        <item name="android:textSize">20sp</item> <!-- Tamaño del texto -->
+    </style>
+</resources>

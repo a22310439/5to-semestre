@@ -1,0 +1,121 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/delete_service"
+    android:padding="16dp"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Icono y Título -->
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:contentDescription="@string/icono_eliminar_servicio"
+            android:src="@drawable/ic_delete"
+            tools:ignore="ImageContrastCheck" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:textStyle="bold"
+            android:text="@string/eliminar_servicio"
+            android:layout_gravity="center"
+            android:textSize="20sp" />
+
+        <!-- Spinner para seleccionar el servicio -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/selecciona_servicio"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinnerServicio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp" />
+
+        <!-- Contenedor para mostrar los detalles -->
+        <LinearLayout
+            android:id="@+id/detallesServicio"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="16dp"
+            android:visibility="gone"> <!-- Inicialmente oculto -->
+
+            <TextView
+                android:id="@+id/tvDescripcion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/descripcion"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvMonto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/monto_del_servicio"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvFecha"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/fecha_del_servicio"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvHora"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/hora_del_servicio"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvCliente"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/cliente"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvComentarios"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/comentarios"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvEstado"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/estado_del_servicio"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvPagado"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/pagado" />
+        </LinearLayout>
+
+        <!-- Botón Eliminar -->
+        <Button
+            android:id="@+id/btnEliminar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/eliminar_servicio"
+            android:drawableStart="@drawable/ic_delete_button"
+            android:layout_marginTop="24dp" />
+    </LinearLayout>
+</ScrollView>

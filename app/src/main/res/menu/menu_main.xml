@@ -1,0 +1,16 @@
+<menu
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/menu_configuraciones"
+        android:title="@string/configuraciones"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_acerca_de"
+        android:title="@string/acerca_de"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_ayuda"
+        android:title="@string/ayuda"
+        app:showAsAction="never" />
+</menu>
