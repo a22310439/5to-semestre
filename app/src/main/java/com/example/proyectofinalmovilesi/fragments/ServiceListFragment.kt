@@ -63,7 +63,6 @@ class ServiceListFragment : Fragment(R.layout.fragment_service_list) {
 
     }
 
-    // Método para actualizar la lista del RecyclerView
     fun actualizarLista() {
         adapter.notifyDataSetChanged()
     }
