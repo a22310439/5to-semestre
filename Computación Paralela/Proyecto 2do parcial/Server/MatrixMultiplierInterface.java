@@ -3,7 +3,9 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 public interface MatrixMultiplierInterface extends Remote {
-    int[][] multiplyPart(int[][] m1, int[][] m2, int startRow, int endRow) throws RemoteException;
-    void recibirMatrizA(int[][] matriz) throws RemoteException;
+    void multiplyPart() throws RemoteException;
+    void recibirMatrizB(int[][] matriz) throws RemoteException;
+    void recibirParteMatrizA(int[][] matriz) throws RemoteException;
+    int[][] enviarMatrizRes() throws RemoteException;
     boolean isReady() throws RemoteException;
 }

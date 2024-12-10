@@ -7,11 +7,6 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-//import java.util.concurrent.ScheduledExecutorService;
-//import java.util.concurrent.TimeUnit;
 import javax.swing.*;
 
 
@@ -74,8 +69,7 @@ public final class Proyecto2 extends JPanel {
     private JLabel[] labelsHiloConc = new JLabel[maxHilos];
 
     private JLabel imgHiloPar;
-    private JLabel labelsHiloPar;
-    private JProgressBar pbPar;     
+    private JLabel labelsHiloPar;  
     private JLabel labelResPar;
     private JButton btnResultadoPar;
 
@@ -122,12 +116,12 @@ public final class Proyecto2 extends JPanel {
 		//Generar M1
         btnGenerarM1.addActionListener((ActionEvent e) -> {
             if (servidoresConectados.isEmpty()) {
-                JOptionPane.showMessageDialog(null, "No hay servidores conectados para enviar la matriz.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "No hay servidores disponibles para realizar el cálculo.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             labelM1.setText("Generando...");
-            String inp1 = JOptionPane.showInputDialog(null, "Matriz A\nIngresa el numero de filas: ");
-            String inp2 = JOptionPane.showInputDialog(null, "Matriz A\nIngresa el numero de columnas: ");
+            String inp1 = JOptionPane.showInputDialog(null, "Matriz A\nIngresa el número de filas: ");
+            String inp2 = JOptionPane.showInputDialog(null, "Matriz A\nIngresa el número de columnas: ");
             try {
                 rowsM1 = Integer.parseInt(inp1);
                 colsM1 = Integer.parseInt(inp2);
@@ -137,21 +131,21 @@ public final class Proyecto2 extends JPanel {
             }
         
             if (m1 != null) {
+                // Actualizar la etiqueta con la representación de la matriz generada
                 rowsM1 = m1.length;
                 colsM1 = m1[0].length;
-                String str = "<html><body><div style=\"text-align:center; width:80px;\">[" + rowsM1 + " X " + colsM1 + "]";
+                String str = "<html><body><div style=\"text-align:center; width:80px;\">[" + rowsM1 + " X " + colsM1 + "]</div>";
                 int aux = m1.length;
                 if (m1.length > 3)
                     aux = 3;
                 for (int i = 0; i < aux; i++) {
                     str += "<p style=\"white-space:nowrap;text-align:center; width:80px;\">" + arrToStr(m1[i]) + "</p>";
                 }
-        
                 str += "</body></html>";
                 labelM1.setText(str);
         
-                // Enviar la matriz a los servidores conectados
-                enviarMatrizAServidores(m1, servidoresConectados);
+                // Enviar las partes de la matriz A a los servidores conectados
+                enviarPartesMatrizA(m1, servidoresConectados);
             } else {
                 labelM1.setText("No hay ninguna matriz");
             }
@@ -159,35 +153,41 @@ public final class Proyecto2 extends JPanel {
 
         //Generar M2
         btnGenerarM2.addActionListener((ActionEvent e) -> {
+            if (servidoresConectados.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "No hay servidores disponibles para realizar el cálculo.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             labelM2.setText("Generando...");
-            String inp1 = JOptionPane.showInputDialog(null, "Matriz B\nIngresa el numero de filas: ");
-            String inp2 = JOptionPane.showInputDialog(null, "Matriz B\nIngresa el numero de columnas: ");
-            try{
+            String inp1 = JOptionPane.showInputDialog(null, "Matriz B\nIngresa el número de filas: ");
+            String inp2 = JOptionPane.showInputDialog(null, "Matriz B\nIngresa el número de columnas: ");
+            try {
                 rowsM2 = Integer.parseInt(inp1);
                 colsM2 = Integer.parseInt(inp2);
                 m2 = MatrixMult.generarMatriz(rowsM2, colsM2);
-            }catch(NumberFormatException ex){
-                JOptionPane.showMessageDialog(null,"Matriz B\nValores no validos","Error",JOptionPane.ERROR_MESSAGE);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(null, "Matriz B\nValores no válidos", "Error", JOptionPane.ERROR_MESSAGE);
             }
-
-            
-            if (m2 != null){
+        
+            if (m2 != null) {
+                // Actualizar la etiqueta con la representación de la matriz generada
                 rowsM2 = m2.length;
                 colsM2 = m2[0].length;
                 String str = "<html><body><div style=\"text-align:center; width:80px;\">[" + rowsM2 + " X " + colsM2 + "]</div>";
                 int aux = m2.length;
                 if (m2.length > 3)
                     aux = 3;
-                for (int i = 0; i < aux ; i++ ) {
+                for (int i = 0; i < aux; i++) {
                     str += "<p style=\"white-space:nowrap;text-align:center; width:80px;\">" + arrToStr(m2[i]) + "</p>";
                 }
-                
                 str += "</body></html>";
                 labelM2.setText(str);
-            }
-            else
+        
+                // Enviar la matriz B completa a los servidores conectados
+                enviarMatrizBServidores(m2, servidoresConectados);
+            } else {
                 labelM2.setText("No hay ninguna matriz");
-                });
+            }
+        });
 
         //Calculo secuencial
         btnCalculoSecuencial.addActionListener((ActionEvent e) -> {
@@ -213,21 +213,15 @@ public final class Proyecto2 extends JPanel {
 
         //Calculo paralelo
         btnCalculoParalelo.addActionListener((ActionEvent e) -> {
-            if (colsM1 != rowsM2) {
-                JOptionPane.showMessageDialog(null, "Las columnas de A y las filas de B deben tener el mismo tamaño", "Error", JOptionPane.ERROR_MESSAGE);
+            if (servidoresConectados.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "No hay servidores disponibles para realizar el cálculo.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-
-            if(nServers == 0){
-                JOptionPane.showMessageDialog(null, "No hay servidores disponibles", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-        
-            limpiar(); // Limpia la interfaz antes de iniciar un nuevo cálculo.
-        
-            hiloParalelo = new ThreadMultParalelo();
+            
+            hiloParalelo = new ThreadMultParalelo(this);
             hiloParalelo.start();
         });
+        
 
         //Calculo Sec&Conc
         btnCalculoSyC.addActionListener((ActionEvent e) -> {
@@ -257,7 +251,7 @@ public final class Proyecto2 extends JPanel {
             hiloSecuencial.start();
             hiloConcurrente = new ThreadMultConcurrente();
             hiloConcurrente.start();
-            hiloParalelo = new ThreadMultParalelo();
+            hiloParalelo = new ThreadMultParalelo(this);
             hiloParalelo.start();
         });
 
@@ -300,6 +294,10 @@ public final class Proyecto2 extends JPanel {
             ventana.setVisible(true);
         });
 
+        btnResultadoPar.addActionListener((ActionEvent e) -> {
+            Dialog ventana = new Dialog(true, resultPar, "Resultado algoritmo paralelo");
+            ventana.setVisible(true);
+        });
 
         //Ver matriz A
         imgM1.addActionListener((ActionEvent e) -> {
@@ -406,21 +404,60 @@ public final class Proyecto2 extends JPanel {
         });
 	}
 
-    private void enviarMatrizAServidores(int[][] matriz, List<String> servidoresConectados) {
+    private void enviarMatrizBServidores(int[][] matriz, List<String> servidoresConectados) {
+        if (servidoresConectados.isEmpty()) {
+            System.err.println("No hay servidores conectados para enviar la matriz.");
+            return;
+        }
+    
         for (String servidor : servidoresConectados) {
             try {
                 String serverName = "rmi://" + servidor + ":1099/MatrixMultiplier";
                 MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
-                
-                // Aquí puedes definir un método en la interfaz para recibir la matriz
-                multiplier.recibirMatrizA(matriz); 
-                
-                System.out.println("Matriz enviada al servidor: " + servidor);
-            } catch (Exception e) {
-                System.err.println("Error al enviar la matriz al servidor " + servidor + ": " + e.getMessage());
+    
+                // Enviar la matriz B
+                multiplier.recibirMatrizB(matriz);
+    
+                System.out.println("Matriz B enviada al servidor: " + servidor);
+            } catch (MalformedURLException | NotBoundException | RemoteException e) {
+                System.err.println("Error al enviar la matriz B al servidor " + servidor + ": " + e.getMessage());
             }
         }
     }
+
+    private void enviarPartesMatrizA(int[][] matriz, List<String> servidoresConectados) {
+        if (servidoresConectados.isEmpty()) {
+            System.err.println("No hay servidores conectados para enviar las partes de la matriz A.");
+            return;
+        }
+    
+        int totalRows = matriz.length;
+        int blockSize = (int) Math.ceil((double) totalRows / servidoresConectados.size());
+    
+        for (int i = 0; i < servidoresConectados.size(); i++) {
+            int startRow = i * blockSize;
+            int endRow = Math.min(startRow + blockSize, totalRows);
+            int[][] subMatrizA = new int[endRow - startRow][matriz[0].length];
+    
+            // Copiar las filas correspondientes
+            for (int r = startRow; r < endRow; r++) {
+                subMatrizA[r - startRow] = matriz[r];
+            }
+    
+            try {
+                String serverName = "rmi://" + servidoresConectados.get(i) + ":1099/MatrixMultiplier";
+                MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
+    
+                // Enviar la parte correspondiente de la matriz A
+                multiplier.recibirParteMatrizA(subMatrizA);
+    
+                System.out.println("Parte de la matriz A enviada al servidor: " + servidoresConectados.get(i));
+            } catch (MalformedURLException | NotBoundException | RemoteException e) {
+                System.err.println("Error al enviar la parte de la matriz A al servidor " + servidoresConectados.get(i) + ": " + e.getMessage());
+            }
+        }
+    }
+    
 
     /*private void verificarServidores() {
         ScheduledExecutorService scheduler = (ScheduledExecutorService) Executors.newScheduledThreadPool(1);
@@ -477,8 +514,7 @@ public final class Proyecto2 extends JPanel {
 		btnResultadoConc = new JButton();
         
         imgHiloPar = new JLabel();  
-        labelsHiloPar = new JLabel(); 
-        pbPar = new JProgressBar();     
+        labelsHiloPar = new JLabel();    
         labelResPar = new JLabel();
         btnResultadoPar = new JButton();
 
@@ -643,9 +679,6 @@ public final class Proyecto2 extends JPanel {
         labelsHiloPar.setBackground(new java.awt.Color(200,200,200));
         add(labelsHiloPar);
 
-        pbPar.setStringPainted(true);
-        add(pbPar);
-
         labelResPar.setFont(new Font("Segoe UI", 0, 16)); 
         labelResPar.setText("Resultado:");
         labelResPar.setHorizontalAlignment(SwingConstants.CENTER);
@@ -720,12 +753,11 @@ public final class Proyecto2 extends JPanel {
         }
 
         imgHiloPar.setBounds(1266, 370, 128, 128);
-        labelsHiloPar.setBounds(1205, 500, 250, 30);      
-        pbPar.setBounds(1205, 550, 250, 50);
+        labelsHiloPar.setBounds(1205, 500, 250, 30);
         labelResPar.setBounds(1155, 740, 350, 22);
         btnResultadoPar.setBounds(1155, 780, 350, 50);
 
-        servidoresDisponibles.setBounds(1130, 610, 400, 120);
+        servidoresDisponibles.setBounds(1130, 570, 400, 120);
         btnAgregarServidor.setBounds(50, 80, 30, 30);
         btnRemoverServidor.setBounds(10, 80, 30, 30);
 
@@ -744,6 +776,9 @@ public final class Proyecto2 extends JPanel {
 			labelsHiloConc[i].setText("Hilo " + i);
 			labelsHiloConc[i].setBackground(new java.awt.Color(200,200,200));
 		}
+
+        labelsHiloPar.setText("Estado hilo paralelo");
+        labelsHiloPar.setBackground(new java.awt.Color(200,200,200));
 
 	}
 
@@ -801,13 +836,17 @@ public final class Proyecto2 extends JPanel {
     	return str;
     }
 
+    public void setResPar(int[][] res){
+        resultPar = res;
+    }
+
 
     public class ThreadMultSecuencial extends Thread {
     	long start, time;
         @Override
     	public void run(){
     		start = System.nanoTime();
-                resultSec = MatrixMult.multiply(m1,m2,pbSec, labelHiloSec);
+            resultSec = MatrixMult.multiply(m1,m2,pbSec, labelHiloSec);
     		time = System.nanoTime() - start;
         	labelResSec.setText("Resultado despues de " + (double) time / 1_000_000 + "ms");
 		}
@@ -825,99 +864,84 @@ public final class Proyecto2 extends JPanel {
     }
 
     public class ThreadMultParalelo extends Thread {
+        private int[][] resultadoFinal; // Variable para almacenar la matriz final
+        private final Object lock = new Object(); // Para sincronización
+        Proyecto2 proyecto2;
         long start, time;
     
+        public ThreadMultParalelo(Proyecto2 proyecto2){
+            this.proyecto2 = proyecto2;
+        }
+
         @Override
         public void run() {
             try {
+                int totalRows = rowsM1; // Número total de filas en la matriz A
+                int cols = colsM2; // Número de columnas en la matriz B
+                resultadoFinal = new int[totalRows][cols]; // Inicializa la matriz
+    
+                labelsHiloPar.setText("Procesando...");
+                labelsHiloPar.setBackground(new Color(0, 255, 255));
+    
                 start = System.nanoTime();
-                int rows = m1.length;
-                int cols = m2[0].length;
-                int[][] result = new int[rows][cols];
-                int blockSize = (int) Math.ceil((double) rows / nServers);
     
-                CountDownLatch latch = new CountDownLatch(nServers);
-                List<int[][]> partialResults = new ArrayList<>();
-                ExecutorService executor = Executors.newFixedThreadPool(nServers);
+                // Iniciar la multiplicación en cada servidor
+                for (int i = 0; i < servidoresConectados.size(); i++) {
+                    String servidor = servidoresConectados.get(i);
+                    String serverName = "rmi://" + servidor + ":1099/MatrixMultiplier";
     
-                pbPar.setMinimum(0);
-                pbPar.setMaximum(rows * cols); // Total de tareas (filas * columnas)
-                pbPar.setValue(0); // Inicializar en 0
-    
-                // Hilo para actualizar la barra de progreso
-                /*Thread progressUpdater = new Thread(() -> {
                     try {
-                        while (latch.getCount() > 0) { // Mientras haya servidores trabajando
-                            int totalProgress = 0;
-                            for (int i = 0; i < nServers; i++) {
-                                try {
-                                    String serverName = "rmi://" + servidoresConectados.get(i) + ":1099/MatrixMultiplier";
-                                    MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
+                        MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
     
-                                    // Obtener progreso de cada servidor
-                                    totalProgress += multiplier.getProgress();
-                                } catch (Exception e) {
-                                    System.out.println("Error al obtener progreso del servidor: " + servidoresConectados.get(i));
+                        // Iniciar la multiplicación en el servidor
+                        multiplier.multiplyPart();
+                        System.out.println("Cálculo iniciado en el servidor " + servidor);
+    
+                    } catch (MalformedURLException | NotBoundException | RemoteException ex) {
+                        System.err.println("Error al iniciar cálculo en el servidor " + servidor + ": " + ex.getMessage());
+                    }
+                }
+    
+                // Marca el tiempo total y notifica que el cálculo ha finalizado
+                time = System.nanoTime() - start;
+    
+                labelsHiloPar.setText("Finalizado");
+                labelsHiloPar.setBackground(new java.awt.Color(0, 200, 0));
+                labelResPar.setText("Resultado después de " + (double) time / 1_000_000 + "ms");
+
+                // Recuperar los resultados parciales de cada servidor
+                for (int i = 0; i < servidoresConectados.size(); i++) {
+                    String servidor = servidoresConectados.get(i);
+                    String serverName = "rmi://" + servidor + ":1099/MatrixMultiplier";
+    
+                    try {
+                        MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
+    
+                        // Recuperar el resultado parcial
+                        int[][] partialResult = multiplier.enviarMatrizRes();
+    
+                        // Agregar el resultado parcial a la matriz final
+                        synchronized (lock) {
+                            for (int r = 0; r < partialResult.length; r++) {
+                                for (int c = 0; c < cols; c++) {
+                                    resultadoFinal[r + (i * partialResult.length)][c] += partialResult[r][c];
                                 }
                             }
-                            pbPar.setValue(totalProgress);
-                            Thread.sleep(100); // Actualizar cada 100 ms
                         }
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                });*/
     
-                //progressUpdater.start();
+                        System.out.println("Resultado parcial recibido del servidor " + servidor);
     
-                for (int i = 0; i < nServers; i++) {
-                    final int serverIndex = i;
-                    final int startRow = i * blockSize;
-                    final int endRow = Math.min(startRow + blockSize, rows);
-    
-                    executor.execute(() -> {
-                        try {
-                            String serverName = "rmi://" + servidoresConectados.get(serverIndex) + ":1099/MatrixMultiplier";
-                            MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
-    
-                            // Llamada remota al servidor
-                            int[][] partialResult = multiplier.multiplyPart(m1, m2, startRow, endRow);
-    
-                            synchronized (partialResults) {
-                                partialResults.add(partialResult);
-                            }
-    
-                        } catch (MalformedURLException | NotBoundException | RemoteException e) {
-                            System.out.println("Error en el servidor: " + servidoresConectados.get(serverIndex));
-                            JOptionPane.showMessageDialog(null, "Error en el servidor: " + servidoresConectados.get(serverIndex),
-                                    "Error", JOptionPane.ERROR_MESSAGE);
-                        } finally {
-                            latch.countDown();
-                        }
-                    });
-                }
-    
-                latch.await();
-                executor.shutdown();
-    
-                //progressUpdater.interrupt(); // Detener el hilo de progreso
-                pbPar.setValue(pbPar.getMaximum()); // Asegúrate de que la barra de progreso esté completa
-    
-                // Combinar resultados parciales
-                int currentRow = 0;
-                for (int[][] partialResult : partialResults) {
-                    for (int[] row : partialResult) {
-                        result[currentRow++] = row;
+                    } catch (MalformedURLException | NotBoundException | RemoteException ex) {
+                        System.err.println("Error al recuperar resultado del servidor " + servidor + ": " + ex.getMessage());
                     }
                 }
+
+                proyecto2.setResPar(resultadoFinal);
     
-                time = System.nanoTime() - start;
-                labelResPar.setText("Resultado después de " + (double) time / 1_000_000 + " ms");
-    
-            } catch (InterruptedException e) {
-                System.out.println("Error en la ejecución paralela: " + e.getMessage());
-                JOptionPane.showMessageDialog(null, "Error durante la ejecución paralela.", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (HeadlessException ex) {
+                JOptionPane.showMessageDialog(null, "Error durante el cálculo paralelo.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
-    }
+    }    
+
 }
