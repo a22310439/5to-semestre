@@ -8,15 +8,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MatrixMultiplierServer extends UnicastRemoteObject implements MatrixMultiplierInterface {
 
     private final ExecutorService executorService;
+    private final AtomicInteger progress = new AtomicInteger(0);
 
     protected MatrixMultiplierServer() throws RemoteException {
         super();
         // Crea un pool de hilos con un número fijo de hilos igual al número de núcleos de la CPU
-        int numThreads = 10;
+        int numThreads = 20;
         executorService = Executors.newFixedThreadPool(numThreads);
     }
 
@@ -26,6 +28,8 @@ public class MatrixMultiplierServer extends UnicastRemoteObject implements Matri
         int cols = m2[0].length;
         int commonDim = m1[0].length;
         int[][] res = new int[rows][cols];
+
+        progress.set(0);
 
         // Divide las filas en subtareas
         int blockSize = (int) Math.ceil((double) rows / 10);
@@ -42,6 +46,7 @@ public class MatrixMultiplierServer extends UnicastRemoteObject implements Matri
                         int temp = m1[startRow + r][k];
                         for (int c = 0; c < cols; c++) {
                             res[r][c] += temp * m2[k][c];
+                            progress.incrementAndGet();
                         }
                     }
                 }
@@ -63,6 +68,11 @@ public class MatrixMultiplierServer extends UnicastRemoteObject implements Matri
         System.out.println("Multiplicación de " + startRow + " a " + endRow + " completada.");
 
         return res;
+    }
+
+    @Override
+    public int getProgress() throws RemoteException {
+        return progress.get(); // Devuelve el progreso actual
     }
 
     @Override

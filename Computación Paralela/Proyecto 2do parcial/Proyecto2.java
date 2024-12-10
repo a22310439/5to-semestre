@@ -809,28 +809,58 @@ public final class Proyecto2 extends JPanel {
                 int cols = m2[0].length;
                 int[][] result = new int[rows][cols];
                 int blockSize = (int) Math.ceil((double) rows / nServers);
-
+    
                 CountDownLatch latch = new CountDownLatch(nServers);
                 List<int[][]> partialResults = new ArrayList<>();
                 ExecutorService executor = Executors.newFixedThreadPool(nServers);
-
+    
+                pbPar.setMinimum(0);
+                pbPar.setMaximum(rows * cols); // Total de tareas (filas * columnas)
+                pbPar.setValue(0); // Inicializar en 0
+    
+                // Hilo para actualizar la barra de progreso
+                Thread progressUpdater = new Thread(() -> {
+                    try {
+                        while (latch.getCount() > 0) { // Mientras haya servidores trabajando
+                            int totalProgress = 0;
+                            for (int i = 0; i < nServers; i++) {
+                                try {
+                                    String serverName = "rmi://" + servidoresConectados.get(i) + ":1099/MatrixMultiplier";
+                                    MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
+    
+                                    // Obtener progreso de cada servidor
+                                    totalProgress += multiplier.getProgress();
+                                } catch (Exception e) {
+                                    System.out.println("Error al obtener progreso del servidor: " + servidoresConectados.get(i));
+                                }
+                            }
+                            pbPar.setValue(totalProgress);
+                            Thread.sleep(100); // Actualizar cada 100 ms
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+    
+                progressUpdater.start();
+    
                 for (int i = 0; i < nServers; i++) {
                     final int serverIndex = i;
                     final int startRow = i * blockSize;
                     final int endRow = Math.min(startRow + blockSize, rows);
-
+    
                     executor.execute(() -> {
                         try {
                             String serverName = "rmi://" + servidoresConectados.get(serverIndex) + ":1099/MatrixMultiplier";
                             MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
-
+    
                             // Llamada remota al servidor
                             int[][] partialResult = multiplier.multiplyPart(m1, m2, startRow, endRow);
-
+    
                             synchronized (partialResults) {
                                 partialResults.add(partialResult);
                             }
-
+    
                         } catch (MalformedURLException | NotBoundException | RemoteException e) {
                             System.out.println("Error en el servidor: " + servidoresConectados.get(serverIndex));
                             JOptionPane.showMessageDialog(null, "Error en el servidor: " + servidoresConectados.get(serverIndex),
@@ -840,10 +870,13 @@ public final class Proyecto2 extends JPanel {
                         }
                     });
                 }
-
+    
                 latch.await();
                 executor.shutdown();
-
+    
+                progressUpdater.interrupt(); // Detener el hilo de progreso
+                pbPar.setValue(pbPar.getMaximum()); // Asegúrate de que la barra de progreso esté completa
+    
                 // Combinar resultados parciales
                 int currentRow = 0;
                 for (int[][] partialResult : partialResults) {
@@ -851,10 +884,10 @@ public final class Proyecto2 extends JPanel {
                         result[currentRow++] = row;
                     }
                 }
-
+    
                 time = System.nanoTime() - start;
                 labelResPar.setText("Resultado después de " + (double) time / 1_000_000 + " ms");
-
+    
             } catch (InterruptedException e) {
                 System.out.println("Error en la ejecución paralela: " + e.getMessage());
                 JOptionPane.showMessageDialog(null, "Error durante la ejecución paralela.", "Error", JOptionPane.ERROR_MESSAGE);
