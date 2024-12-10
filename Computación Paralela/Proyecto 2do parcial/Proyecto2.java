@@ -1,5 +1,17 @@
+import Server.MatrixMultiplierInterface;
 import java.awt.*;
 import java.awt.event.*;
+import java.net.MalformedURLException;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.swing.*;
 
 
@@ -9,8 +21,8 @@ public final class Proyecto2 extends JPanel {
         Proyecto2 proyecto = new Proyecto2();
 
         JFrame frame = new JFrame ("MyPanel");
-        frame.setSize(1020,900);
-        frame.setLocation(450, 50);
+        frame.setSize(1600,900);
+        frame.setLocation(250, 50);
         frame.setTitle("Multiplicacion de matrices");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.add (proyecto);
@@ -19,6 +31,8 @@ public final class Proyecto2 extends JPanel {
     }
 
 	public int maxHilos = 20;
+
+    private List<String> servidoresConectados = new ArrayList<>();
 
 	//Componentes Visuales
 	private JLabel labelTitulo;
@@ -34,10 +48,13 @@ public final class Proyecto2 extends JPanel {
 
     private JButton btnCalculoSecuencial;
     private JButton btnCalculoConcurrente;
+    private JButton btnCalculoParalelo;
 	private JButton btnCalculoSyC;
+	private JButton btnCalculoSCP;
 
-	private JLabel labelSecuencial;
-	private JLabel jLabel1;
+	private JLabel tituloSecuencial;
+	private JLabel tituloConcurrente;
+	private JLabel tituloParalelo;
 
 	private JLabel imgHiloSec;
 	private JLabel labelHiloSec;
@@ -49,19 +66,35 @@ public final class Proyecto2 extends JPanel {
 	private JButton btnRemoverHilo;    
     private JButton btnAgregarHilo; 
     private JLabel labelResConc;
+
     private JButton btnResultadoConc;
 
 
     private JProgressBar[] pbsConc = new JProgressBar[maxHilos];
     private JLabel[] labelsHiloConc = new JLabel[maxHilos];
 
+    private JLabel imgHiloPar;
+    private JLabel labelsHiloPar;
+    private JProgressBar pbPar;     
+    private JLabel labelResPar;
+    private JButton btnResultadoPar;
+
+    private JPanel servidoresDisponibles;
+    private JButton btnAgregarServidor;
+    private JButton btnRemoverServidor;
+    private JLabel[] ipServidores = new JLabel[3];
+    private JLabel[] serverIcons = new JLabel[3];
+    private JLabel[] disponibleIcons = new JLabel[3];
+
 
     //Variables
 	public int nHilos;
+    public int nServers;
 	public int[][] m1;
 	public int[][] m2;
 	public int[][] resultSec;
 	public int[][] resultConc;
+    public int[][] resultPar;
 
 	public int rowsM1;
 	public int colsM1;
@@ -71,16 +104,20 @@ public final class Proyecto2 extends JPanel {
 
 	public ThreadMultSecuencial hiloSecuencial;
 	public ThreadMultConcurrente hiloConcurrente;
+	public ThreadMultParalelo hiloParalelo;
 
 	public Proyecto2(){
 
 		nHilos = 10;
+        nServers = 0;
 		crearComponentes();
 
 		m1 = MatrixMult.generarMatriz(1000, 1000);
 		m2 = MatrixMult.generarMatriz(1000, 1000);
 
 		inicio();
+
+        verificarServidores();
 
 		//Generar M1
         btnGenerarM1.addActionListener((ActionEvent e) -> {
@@ -151,7 +188,7 @@ public final class Proyecto2 extends JPanel {
             limpiar();
             hiloSecuencial = new ThreadMultSecuencial();
             hiloSecuencial.start();
-                });
+        });
 
         //Calculo concurrente
         btnCalculoConcurrente.addActionListener((ActionEvent e) -> {
@@ -162,7 +199,25 @@ public final class Proyecto2 extends JPanel {
             limpiar();
             hiloConcurrente = new ThreadMultConcurrente();
             hiloConcurrente.start();
-                });
+        });
+
+        //Calculo paralelo
+        btnCalculoParalelo.addActionListener((ActionEvent e) -> {
+            if (colsM1 != rowsM2) {
+                JOptionPane.showMessageDialog(null, "Las columnas de A y las filas de B deben tener el mismo tamaño", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            if(nServers == 0){
+                JOptionPane.showMessageDialog(null, "No hay servidores disponibles", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+        
+            limpiar(); // Limpia la interfaz antes de iniciar un nuevo cálculo.
+        
+            hiloParalelo = new ThreadMultParalelo();
+            hiloParalelo.start();
+        });
 
         //Calculo Sec&Conc
         btnCalculoSyC.addActionListener((ActionEvent e) -> {
@@ -175,7 +230,26 @@ public final class Proyecto2 extends JPanel {
             hiloSecuencial.start();
             hiloConcurrente = new ThreadMultConcurrente();
             hiloConcurrente.start();
-                });
+        });
+
+        //Calculo Sec-Conc-Par
+        btnCalculoSCP.addActionListener((ActionEvent e) -> {
+            if (colsM1 != rowsM2){
+                JOptionPane.showMessageDialog(null,"Las columnas de A y las filas de B deben tener el mismo tamaño","Error",JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if(nServers == 0){
+                JOptionPane.showMessageDialog(null, "No hay servidores disponibles", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            limpiar();
+            hiloSecuencial = new ThreadMultSecuencial();
+            hiloSecuencial.start();
+            hiloConcurrente = new ThreadMultConcurrente();
+            hiloConcurrente.start();
+            hiloParalelo = new ThreadMultParalelo();
+            hiloParalelo.start();
+        });
 
 
         //Incrementar hilos
@@ -208,27 +282,138 @@ public final class Proyecto2 extends JPanel {
         btnResultadoSec.addActionListener((ActionEvent e) -> {
             Dialog ventana = new Dialog(true, resultSec, "Resultado algoritmo secuencial");
             ventana.setVisible(true);
-                });
+        });
 
         //Ver resultado concurrente
         btnResultadoConc.addActionListener((ActionEvent e) -> {
             Dialog ventana = new Dialog(true, resultConc, "Resultado algoritmo concurrente");
             ventana.setVisible(true);
-                });
+        });
 
 
         //Ver matriz A
         imgM1.addActionListener((ActionEvent e) -> {
             Dialog ventana = new Dialog(true, m1, "Matriz A");
             ventana.setVisible(true);
-                });
+        });
 
         //Ver matriz B
         imgM2.addActionListener((ActionEvent e) -> {
             Dialog ventana = new Dialog(true, m2, "Matriz B");
             ventana.setVisible(true);
-                });     
+        });
+
+        btnAgregarServidor.addActionListener((ActionEvent e) -> {
+            if(nServers < 3){
+
+                String ipServidor = JOptionPane.showInputDialog(null, "Ingrese la IP del servidor:", "Agregar Servidor", JOptionPane.PLAIN_MESSAGE);
+                if (ipServidor == null || ipServidor.isEmpty()) {
+                    JOptionPane.showMessageDialog(null, "No se ingresó una IP válida.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }else if(servidoresConectados.contains(ipServidor)){
+                    JOptionPane.showMessageDialog(null, "Ese servidor ya se esta usando", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                try {
+                    String serverName = "rmi://" + ipServidor + ":1099/MatrixMultiplier";
+
+                    // Intenta localizar el servidor y probar la conexión
+                    MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
+                    System.out.println("isReady: " + multiplier.isReady());
+                    if (multiplier.isReady()) {
+                        servidoresConectados.add(ipServidor);
+                        nServers++;
+                        ipServidores[nServers-1].setText("IP: " + ipServidor);
+                        serverIcons[nServers-1].setVisible(true);
+                        disponibleIcons[nServers-1].setVisible(true);
+                        ipServidores[nServers-1].setVisible(true);
+                        JOptionPane.showMessageDialog(null, "Servidor conectado correctamente.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+                    }
+                } catch (HeadlessException | MalformedURLException | NotBoundException | RemoteException ex) {
+                    JOptionPane.showMessageDialog(null, "No se pudo conectar al servidor: " + ipServidor, "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "Ya no se pueden agregar más servidores", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            }
+
+            
+        });
+
+        btnRemoverServidor.addActionListener((ActionEvent e) -> {
+            if (nServers > 0) {
+                // Crear una lista desplegable con las direcciones IP de los servidores
+                String[] opciones = servidoresConectados.toArray(String[]::new);
+                String servidorAEliminar = (String) JOptionPane.showInputDialog(
+                    null,
+                    "Selecciona el servidor a eliminar:",
+                    "Eliminar Servidor",
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    opciones,
+                    opciones[0]
+                );
+        
+                // Verificar que el usuario seleccionó un servidor
+                if (servidorAEliminar != null) {
+                    // Confirmar la eliminación
+                    int confirm = JOptionPane.showConfirmDialog(
+                        null,
+                        "¿Estás seguro de que deseas eliminar el servidor " + servidorAEliminar + "?",
+                        "Confirmar eliminación",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE
+                    );
+        
+                    if (confirm == JOptionPane.YES_OPTION) {
+                        // Encontrar el índice del servidor seleccionado
+                        int index = servidoresConectados.indexOf(servidorAEliminar);
+        
+                        // Eliminar el servidor de la lista
+                        servidoresConectados.remove(index);
+        
+                        // Actualizar la interfaz gráfica
+                        for (int i = 0; i < servidoresConectados.size(); i++) {
+                            ipServidores[i].setText(servidoresConectados.get(i));
+                            serverIcons[i].setVisible(true);
+                            disponibleIcons[i].setVisible(true);
+                            ipServidores[i].setVisible(true);
+                        }
+        
+                        // Ocultar elementos sobrantes si quedan menos servidores
+                        for (int i = servidoresConectados.size(); i < ipServidores.length; i++) {
+                            ipServidores[i].setVisible(false);
+                            serverIcons[i].setVisible(false);
+                            disponibleIcons[i].setVisible(false);
+                        }
+        
+                        nServers--;
+                    }
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "No hay servidores para eliminar.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            }
+        });
 	}
+
+    private void verificarServidores() {
+        ScheduledExecutorService scheduler = (ScheduledExecutorService) Executors.newScheduledThreadPool(1);
+        Runnable task = () -> {
+            for (String ip : new ArrayList<>(servidoresConectados)) {
+                try {
+                    String serverName = "rmi://" + ip + ":1099/MatrixMultiplier";
+                    MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
+                    if (multiplier.isReady()) {
+                        disponibleIcons[servidoresConectados.indexOf(ip)].setIcon(new ImageIcon(Proyecto2.this.getClass().getResource("/images/yes.png")));
+                    }
+                } catch (MalformedURLException | NotBoundException | RemoteException e) {
+                    disponibleIcons[servidoresConectados.indexOf(ip)].setIcon(new ImageIcon(Proyecto2.this.getClass().getResource("/images/no.png")));
+                    servidoresConectados.remove(ip);
+                }
+            }
+        };
+        scheduler.scheduleAtFixedRate(task, 0, 100, TimeUnit.MILLISECONDS);
+    }
 
 	public void crearComponentes(){
 		//construct components
@@ -245,14 +430,17 @@ public final class Proyecto2 extends JPanel {
 
 		btnCalculoSecuencial = new JButton();
         btnCalculoConcurrente = new JButton();
+        btnCalculoParalelo = new JButton();
         btnCalculoSyC = new JButton();
+        btnCalculoSCP = new JButton();
 
-        labelSecuencial = new JLabel();   
-		jLabel1 = new JLabel();    
+        tituloSecuencial = new JLabel();   
+		tituloConcurrente = new JLabel();
+		tituloParalelo = new JLabel();
 
 		imgHiloSec = new JLabel();  
 		labelHiloSec = new JLabel(); 
-		pbSec = new JProgressBar();          
+		pbSec = new JProgressBar();
         labelResSec = new JLabel();
         btnResultadoSec = new JButton();
 
@@ -261,7 +449,22 @@ public final class Proyecto2 extends JPanel {
         btnAgregarHilo = new JButton(); 
 		labelResConc = new JLabel();
 		btnResultadoConc = new JButton();
+        
+        imgHiloPar = new JLabel();  
+        labelsHiloPar = new JLabel(); 
+        pbPar = new JProgressBar();     
+        labelResPar = new JLabel();
+        btnResultadoPar = new JButton();
 
+        servidoresDisponibles = new JPanel();
+        btnAgregarServidor = new JButton();
+        btnRemoverServidor = new JButton();
+
+        for (int i = 0; i < 3 ; i++ ) {
+            serverIcons[i] = new JLabel();
+            disponibleIcons[i] = new JLabel();
+            ipServidores[i] = new JLabel();
+        }
 
 		for (int i = 0; i < maxHilos ; i++ ) {
 			pbsConc[i] = new JProgressBar();
@@ -312,20 +515,41 @@ public final class Proyecto2 extends JPanel {
         btnCalculoConcurrente.setText("Calculo concurrente");
         add(btnCalculoConcurrente);
 
+        btnCalculoParalelo.setText("Calculo paralelo");
+        add(btnCalculoParalelo);
+
         btnCalculoSyC.setText("Calculo secuencial y concurrente");
         add(btnCalculoSyC);
 
-        labelSecuencial.setBackground(new Color(242, 242, 0));
-        labelSecuencial.setFont(new Font("Segoe UI", 0, 18)); 
-        labelSecuencial.setHorizontalAlignment(SwingConstants.CENTER);
-        labelSecuencial.setText("Calculo secuencial");
-        add(labelSecuencial);
+        btnCalculoSCP.setText("Calculo secuencial, concurrente y paralelo");
+        add(btnCalculoSCP);
 
-        jLabel1.setBackground(new Color(242, 242, 0));
-        jLabel1.setFont(new Font("Segoe UI", 0, 18)); 
-        jLabel1.setHorizontalAlignment(SwingConstants.CENTER);
-        jLabel1.setText("Calculo concurrente");
-        add(jLabel1);
+        tituloSecuencial.setBackground(new Color(242, 242, 0));
+        tituloSecuencial.setFont(new Font("Segoe UI", 0, 18)); 
+        tituloSecuencial.setHorizontalAlignment(SwingConstants.CENTER);
+        tituloSecuencial.setText("Calculo secuencial");
+        add(tituloSecuencial);
+
+        tituloConcurrente.setBackground(new Color(242, 242, 0));
+        tituloConcurrente.setFont(new Font("Segoe UI", 0, 18)); 
+        tituloConcurrente.setHorizontalAlignment(SwingConstants.CENTER);
+        tituloConcurrente.setText("Calculo concurrente");
+        add(tituloConcurrente);
+
+        tituloParalelo.setBackground(new Color(242, 242, 0));
+        tituloParalelo.setFont(new Font("Segoe UI", 0, 18)); 
+        tituloParalelo.setHorizontalAlignment(SwingConstants.CENTER);
+        tituloParalelo.setText("Calculo Paralelo");
+        add(tituloParalelo);
+
+        servidoresDisponibles.setLayout(null); // Layout personalizado
+        servidoresDisponibles.setBorder(BorderFactory.createTitledBorder("Servidores disponibles: " + nServers));
+        add(servidoresDisponibles);
+
+        btnAgregarServidor.setIcon(new ImageIcon(getClass().getResource("/images/add.png")));
+        servidoresDisponibles.add(btnAgregarServidor);
+        btnRemoverServidor.setIcon(new ImageIcon(getClass().getResource("/images/minus.png")));
+        servidoresDisponibles.add(btnRemoverServidor);
 
         	//--- Secuencial ---//
 
@@ -372,6 +596,7 @@ public final class Proyecto2 extends JPanel {
         btnResultadoConc.setIcon(new ImageIcon(getClass().getResource("/images/result.png")));
         add(btnResultadoConc);
 
+
         for (int i = 0;  i < maxHilos ; i++ ) {
         	pbsConc[i].setStringPainted(true);
         	add(pbsConc[i]);
@@ -382,26 +607,64 @@ public final class Proyecto2 extends JPanel {
         	add(labelsHiloConc[i]);
         }
 
+        //--- Paralelo ---//
+        imgHiloPar.setIcon(new ImageIcon(getClass().getResource("/images/thread1.png"))); 
+        add(imgHiloPar);
 
+        labelsHiloPar.setHorizontalAlignment(SwingConstants.CENTER);
+        labelsHiloPar.setText("Estado hilo paralelo");      
+        labelsHiloPar.setOpaque(true);
+        labelsHiloPar.setBackground(new java.awt.Color(200,200,200));
+        add(labelsHiloPar);
+
+        pbPar.setStringPainted(true);
+        add(pbPar);
+
+        labelResPar.setFont(new Font("Segoe UI", 0, 16)); 
+        labelResPar.setText("Resultado:");
+        labelResPar.setHorizontalAlignment(SwingConstants.CENTER);
+        add(labelResPar);
+
+        btnResultadoPar.setText("Ver resultado algoritmo paralelo");
+        btnResultadoPar.setIcon(new ImageIcon(getClass().getResource("/images/result.png")));
+        add(btnResultadoPar);
+
+        for (int i = 0; i < 3 ; i++ ) {
+            serverIcons[i].setIcon(new ImageIcon(getClass().getResource("/images/server.png")));
+            servidoresDisponibles.add(serverIcons[i]);
+            disponibleIcons[i].setIcon(new ImageIcon(getClass().getResource("/images/yes.png")));
+            servidoresDisponibles.add(disponibleIcons[i]);
+            ipServidores[i].setText("");
+            ipServidores[i].setHorizontalAlignment(SwingConstants.CENTER);
+            servidoresDisponibles.add(ipServidores[i]);
+            serverIcons[i].setOpaque(false);
+            disponibleIcons[i].setOpaque(false);
+            serverIcons[i].setVisible(false);
+            disponibleIcons[i].setVisible(false);
+            ipServidores[i].setVisible(false);
+        }
         //set component bounds
 
-        labelTitulo.setBounds(360, 10, 290, 35);
+        labelTitulo.setBounds(655, 10, 290, 35);
 
-        imgM1.setBounds(250, 70, 64, 64);
-        imgM2.setBounds(530, 70, 64, 64);
+        imgM1.setBounds(558, 70, 64, 64);
+        imgM2.setBounds(838, 70, 64, 64);
 
-        labelM1.setBounds(330, 70, 121, 60);
-        labelM2.setBounds(610, 70, 121, 60);
+        labelM1.setBounds(638, 70, 121, 60);
+        labelM2.setBounds(918, 70, 121, 60);
 
-        btnGenerarM1.setBounds(255, 140, 195, 28); 
-        btnGenerarM2.setBounds(535, 140, 195, 28);   
+        btnGenerarM1.setBounds(563, 140, 195, 28); 
+        btnGenerarM2.setBounds(843, 140, 195, 28);   
 
-        btnCalculoSecuencial.setBounds(255, 220, 475, 23);
-        btnCalculoConcurrente.setBounds(255, 250, 475, 23);
-        btnCalculoSyC.setBounds(255, 280, 475, 23);
+        btnCalculoSecuencial.setBounds(563, 180, 475, 23);
+        btnCalculoConcurrente.setBounds(563, 210, 475, 23);
+        btnCalculoParalelo.setBounds(563, 240, 475, 23);
+        btnCalculoSyC.setBounds(563, 270, 475, 23);
+        btnCalculoSCP.setBounds(563, 300, 475, 23);
 
-        labelSecuencial.setBounds(140, 330, 260, 20);
-        jLabel1.setBounds(570, 330, 260, 20);
+        tituloSecuencial.setBounds(140, 330, 260, 20);
+        tituloConcurrente.setBounds(670, 330, 260, 20);
+        tituloParalelo.setBounds(1200, 330, 260, 20);
 
         imgHiloSec.setBounds(200, 370, 128, 128);
         labelHiloSec.setBounds(140, 500, 250, 30);      
@@ -409,20 +672,36 @@ public final class Proyecto2 extends JPanel {
         labelResSec.setBounds(90, 740, 350, 22);
         btnResultadoSec.setBounds(90, 780, 350, 50);
 
-        labelNumeroHilos.setBounds(560, 370, 180, 22);
-        btnRemoverHilo.setBounds(750, 370, 30, 30);
-        btnAgregarHilo.setBounds(790, 370, 30, 30);    
-        labelResConc.setBounds(520, 740, 350, 22);
-        btnResultadoConc.setBounds(520, 780, 350, 50);
+        labelNumeroHilos.setBounds(660, 370, 180, 22);
+        btnRemoverHilo.setBounds(850, 370, 30, 30);
+        btnAgregarHilo.setBounds(890, 370, 30, 30);    
+        labelResConc.setBounds(625, 740, 350, 22);
+        btnResultadoConc.setBounds(620, 780, 350, 50);
+
+        for (int i = 0; i < 3; i++) {
+            serverIcons[i].setBounds(100 + i * 100, 20 , 30, 30);
+            disponibleIcons[i].setBounds(100 + i * 100, 35, 20, 20);
+            ipServidores[i].setBounds(65 + i * 100, 60, 100, 20);
+        }
 
         for (int i = 0; i < maxHilos/2 ; i++ ) {
-        	pbsConc[i*2].setBounds(470, 420+i*30, 145, 25);
-        	labelsHiloConc[i*2].setBounds(620, 420+i*30, 100, 25);
+        	pbsConc[i*2].setBounds(545, 420+i*30, 145, 25);
+        	labelsHiloConc[i*2].setBounds(695, 420+i*30, 100, 25);
         }
         for (int i = 0; i < maxHilos/2 ; i++ ) {
-        	pbsConc[i*2+1].setBounds(730, 420+i*30, 145, 25);
-        	labelsHiloConc[i*2+1].setBounds(880, 420+i*30, 100, 25);
+        	pbsConc[i*2+1].setBounds(805, 420+i*30, 145, 25);
+        	labelsHiloConc[i*2+1].setBounds(955, 420+i*30, 100, 25);
         }
+
+        imgHiloPar.setBounds(1266, 370, 128, 128);
+        labelsHiloPar.setBounds(1205, 500, 250, 30);      
+        pbPar.setBounds(1205, 550, 250, 50);
+        labelResPar.setBounds(1155, 740, 350, 22);
+        btnResultadoPar.setBounds(1155, 780, 350, 50);
+
+        servidoresDisponibles.setBounds(1130, 610, 400, 120);
+        btnAgregarServidor.setBounds(50, 80, 30, 30);
+        btnRemoverServidor.setBounds(10, 80, 30, 30);
 
 	}
 
@@ -488,9 +767,6 @@ public final class Proyecto2 extends JPanel {
 	}
 
 
-    
-
-
     public static String arrToStr(int[] arr){
     	String str = "";
     	for (int i = 0; i < arr.length ; i++ ) {
@@ -522,8 +798,67 @@ public final class Proyecto2 extends JPanel {
 		}
     }
 
+    public class ThreadMultParalelo extends Thread {
+        long start, time;
+    
+        @Override
+        public void run() {
+            try {
+                start = System.nanoTime();
+                int rows = m1.length;
+                int cols = m2[0].length;
+                int[][] result = new int[rows][cols];
+                int blockSize = (int) Math.ceil((double) rows / nServers);
+
+                CountDownLatch latch = new CountDownLatch(nServers);
+                List<int[][]> partialResults = new ArrayList<>();
+                ExecutorService executor = Executors.newFixedThreadPool(nServers);
+
+                for (int i = 0; i < nServers; i++) {
+                    final int serverIndex = i;
+                    final int startRow = i * blockSize;
+                    final int endRow = Math.min(startRow + blockSize, rows);
+
+                    executor.execute(() -> {
+                        try {
+                            String serverName = "rmi://" + servidoresConectados.get(serverIndex) + ":1099/MatrixMultiplier";
+                            MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
+
+                            // Llamada remota al servidor
+                            int[][] partialResult = multiplier.multiplyPart(m1, m2, startRow, endRow);
+
+                            synchronized (partialResults) {
+                                partialResults.add(partialResult);
+                            }
+
+                        } catch (MalformedURLException | NotBoundException | RemoteException e) {
+                            System.out.println("Error en el servidor: " + servidoresConectados.get(serverIndex));
+                            JOptionPane.showMessageDialog(null, "Error en el servidor: " + servidoresConectados.get(serverIndex),
+                                    "Error", JOptionPane.ERROR_MESSAGE);
+                        } finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                latch.await();
+                executor.shutdown();
+
+                // Combinar resultados parciales
+                int currentRow = 0;
+                for (int[][] partialResult : partialResults) {
+                    for (int[] row : partialResult) {
+                        result[currentRow++] = row;
+                    }
+                }
+
+                time = System.nanoTime() - start;
+                labelResPar.setText("Resultado después de " + (double) time / 1_000_000 + " ms");
+
+            } catch (InterruptedException e) {
+                System.out.println("Error en la ejecución paralela: " + e.getMessage());
+                JOptionPane.showMessageDialog(null, "Error durante la ejecución paralela.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
 }
-
-
-
-

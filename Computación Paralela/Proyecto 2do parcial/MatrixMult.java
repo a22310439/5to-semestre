@@ -2,9 +2,8 @@ import java.awt.Color;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadLocalRandom ;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.swing.*;
-
 
 public class MatrixMult{
 
@@ -48,9 +47,6 @@ public class MatrixMult{
     
         return res;
     }
-    
-
-
 
     public static int[][] multiplyConcurrent(int m1[][], int m2[][], int nThreads, JProgressBar[] pbArr, JLabel[] estadoArr) {
         if (m1[0].length != m2.length) {
@@ -105,8 +101,6 @@ public class MatrixMult{
 
         return res;
     }
-
-
 
     public static int[][] generarMatriz(int largo, int ancho){
         if (largo == 0 || ancho == 0)
