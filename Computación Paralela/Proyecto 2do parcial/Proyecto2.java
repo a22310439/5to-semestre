@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+//import java.util.concurrent.ScheduledExecutorService;
+//import java.util.concurrent.TimeUnit;
 import javax.swing.*;
 
 
@@ -117,36 +117,46 @@ public final class Proyecto2 extends JPanel {
 
 		inicio();
 
-        verificarServidores();
+        //verificarServidores();
 
 		//Generar M1
         btnGenerarM1.addActionListener((ActionEvent e) -> {
+            if (servidoresConectados.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "No hay servidores conectados para enviar la matriz.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
             labelM1.setText("Generando...");
             String inp1 = JOptionPane.showInputDialog(null, "Matriz A\nIngresa el numero de filas: ");
             String inp2 = JOptionPane.showInputDialog(null, "Matriz A\nIngresa el numero de columnas: ");
-            try{
+            try {
                 rowsM1 = Integer.parseInt(inp1);
                 colsM1 = Integer.parseInt(inp2);
                 m1 = MatrixMult.generarMatriz(rowsM1, colsM1);
-            }catch(NumberFormatException ex){ JOptionPane.showMessageDialog(null,"Matriz A\nValores no validos","Error",JOptionPane.ERROR_MESSAGE);}
-            
-            if (m1 != null){
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(null, "Matriz A\nValores no válidos", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        
+            if (m1 != null) {
                 rowsM1 = m1.length;
                 colsM1 = m1[0].length;
                 String str = "<html><body><div style=\"text-align:center; width:80px;\">[" + rowsM1 + " X " + colsM1 + "]";
                 int aux = m1.length;
                 if (m1.length > 3)
                     aux = 3;
-                for (int i = 0; i < aux ; i++ ) {
+                for (int i = 0; i < aux; i++) {
                     str += "<p style=\"white-space:nowrap;text-align:center; width:80px;\">" + arrToStr(m1[i]) + "</p>";
                 }
-                
+        
                 str += "</body></html>";
                 labelM1.setText(str);
-            }
-            else
+        
+                // Enviar la matriz a los servidores conectados
+                enviarMatrizAServidores(m1, servidoresConectados);
+            } else {
                 labelM1.setText("No hay ninguna matriz");
-                });
+            }
+        });
+
         //Generar M2
         btnGenerarM2.addActionListener((ActionEvent e) -> {
             labelM2.setText("Generando...");
@@ -396,7 +406,23 @@ public final class Proyecto2 extends JPanel {
         });
 	}
 
-    private void verificarServidores() {
+    private void enviarMatrizAServidores(int[][] matriz, List<String> servidoresConectados) {
+        for (String servidor : servidoresConectados) {
+            try {
+                String serverName = "rmi://" + servidor + ":1099/MatrixMultiplier";
+                MatrixMultiplierInterface multiplier = (MatrixMultiplierInterface) Naming.lookup(serverName);
+                
+                // Aquí puedes definir un método en la interfaz para recibir la matriz
+                multiplier.recibirMatrizA(matriz); 
+                
+                System.out.println("Matriz enviada al servidor: " + servidor);
+            } catch (Exception e) {
+                System.err.println("Error al enviar la matriz al servidor " + servidor + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /*private void verificarServidores() {
         ScheduledExecutorService scheduler = (ScheduledExecutorService) Executors.newScheduledThreadPool(1);
         Runnable task = () -> {
             for (String ip : new ArrayList<>(servidoresConectados)) {
@@ -412,8 +438,8 @@ public final class Proyecto2 extends JPanel {
                 }
             }
         };
-        scheduler.scheduleAtFixedRate(task, 0, 100, TimeUnit.MILLISECONDS);
-    }
+        scheduler.scheduleAtFixedRate(task, 0, 5, TimeUnit.SECONDS);
+    }*/
 
 	public void crearComponentes(){
 		//construct components
@@ -781,7 +807,7 @@ public final class Proyecto2 extends JPanel {
         @Override
     	public void run(){
     		start = System.nanoTime();
-    		resultSec = MatrixMult.multiply(m1,m2,pbSec, labelHiloSec);
+                resultSec = MatrixMult.multiply(m1,m2,pbSec, labelHiloSec);
     		time = System.nanoTime() - start;
         	labelResSec.setText("Resultado despues de " + (double) time / 1_000_000 + "ms");
 		}
@@ -819,7 +845,7 @@ public final class Proyecto2 extends JPanel {
                 pbPar.setValue(0); // Inicializar en 0
     
                 // Hilo para actualizar la barra de progreso
-                Thread progressUpdater = new Thread(() -> {
+                /*Thread progressUpdater = new Thread(() -> {
                     try {
                         while (latch.getCount() > 0) { // Mientras haya servidores trabajando
                             int totalProgress = 0;
@@ -840,9 +866,9 @@ public final class Proyecto2 extends JPanel {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                });
+                });*/
     
-                progressUpdater.start();
+                //progressUpdater.start();
     
                 for (int i = 0; i < nServers; i++) {
                     final int serverIndex = i;
@@ -874,7 +900,7 @@ public final class Proyecto2 extends JPanel {
                 latch.await();
                 executor.shutdown();
     
-                progressUpdater.interrupt(); // Detener el hilo de progreso
+                //progressUpdater.interrupt(); // Detener el hilo de progreso
                 pbPar.setValue(pbPar.getMaximum()); // Asegúrate de que la barra de progreso esté completa
     
                 // Combinar resultados parciales

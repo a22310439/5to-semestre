@@ -1,4 +1,5 @@
 package Server;
+
 import java.net.MalformedURLException;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
@@ -8,18 +9,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class MatrixMultiplierServer extends UnicastRemoteObject implements MatrixMultiplierInterface {
 
     private final ExecutorService executorService;
-    private final AtomicInteger progress = new AtomicInteger(0);
+    private int[][] matrizA; // Almacena la matriz A
+    private final ReentrantLock lock; // Para sincronización en acceso a la matriz
 
     protected MatrixMultiplierServer() throws RemoteException {
         super();
         // Crea un pool de hilos con un número fijo de hilos igual al número de núcleos de la CPU
         int numThreads = 20;
         executorService = Executors.newFixedThreadPool(numThreads);
+        lock = new ReentrantLock();
     }
 
     @Override
@@ -28,8 +31,6 @@ public class MatrixMultiplierServer extends UnicastRemoteObject implements Matri
         int cols = m2[0].length;
         int commonDim = m1[0].length;
         int[][] res = new int[rows][cols];
-
-        progress.set(0);
 
         // Divide las filas en subtareas
         int blockSize = (int) Math.ceil((double) rows / 10);
@@ -46,7 +47,6 @@ public class MatrixMultiplierServer extends UnicastRemoteObject implements Matri
                         int temp = m1[startRow + r][k];
                         for (int c = 0; c < cols; c++) {
                             res[r][c] += temp * m2[k][c];
-                            progress.incrementAndGet();
                         }
                     }
                 }
@@ -71,14 +71,32 @@ public class MatrixMultiplierServer extends UnicastRemoteObject implements Matri
     }
 
     @Override
-    public int getProgress() throws RemoteException {
-        return progress.get(); // Devuelve el progreso actual
+    public boolean isReady() throws RemoteException {
+        System.out.println("Conexión establecida.");
+        return true;
     }
 
     @Override
-    public boolean isReady() throws RemoteException {
-        System.out.println("Conexion establecida.");
-        return true;
+    public void recibirMatrizA(int[][] matriz) throws RemoteException {
+        lock.lock(); // Bloquea el acceso concurrente
+        try {
+            this.matrizA = matriz; // Almacena la matriz recibida
+            System.out.println("Matriz A recibida con " + matriz.length + " filas y " + matriz[0].length + " columnas.");
+        } finally {
+            lock.unlock(); // Libera el bloqueo
+        }
+    }
+
+    public int[][] getMatrizA() throws RemoteException {
+        lock.lock();
+        try {
+            if (matrizA == null) {
+                throw new RemoteException("No hay ninguna matriz almacenada.");
+            }
+            return matrizA;
+        } finally {
+            lock.unlock();
+        }
     }
 
     public static void main(String[] args) {
